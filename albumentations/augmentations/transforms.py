@@ -1,20 +1,21 @@
 from __future__ import absolute_import, division
 
 import random
-import warnings
 
-import cv2
 import numpy as np
 
+import cv2
+
 from . import functional as F
-from ..core.transforms_interface import to_tuple, DualTransform, ImageOnlyTransform
+from ..core.transforms_interface import (DualTransform, ImageOnlyTransform,
+                                         to_tuple)
 
 __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Transpose', 'RandomCrop', 'RandomGamma',
            'RandomRotate90', 'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion',
            'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift', 'RandomBrightness', 'RandomContrast',
            'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
            'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize',
-           'SmallestMaxSize', 'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast', 'RandomCropNearBBox']
+           'SmallestMaxSize', 'Resize', 'RandomSizedCrop']
 
 
 class PadIfNeeded(DualTransform):
@@ -25,7 +26,7 @@ class PadIfNeeded(DualTransform):
         value (list of ints [r, g, b]): padding value if border_mode is cv2.BORDER_CONSTANT.
 
     Targets:
-        image, mask
+        image, mask, bboxes
 
     Image types:
         uint8, float32
@@ -33,16 +34,50 @@ class PadIfNeeded(DualTransform):
     """
 
     def __init__(self, min_height=1024, min_width=1024, border_mode=cv2.BORDER_REFLECT_101,
-                 value=[0, 0, 0], always_apply=False, p=1.0):
-        super(PadIfNeeded, self).__init__(always_apply, p)
+                 value=[0, 0, 0], p=1.0):
+        super(PadIfNeeded, self).__init__(p)
         self.min_height = min_height
         self.min_width = min_width
         self.border_mode = border_mode
         self.value = value
 
-    def apply(self, img, **params):
-        return F.pad(img, min_height=self.min_height, min_width=self.min_width,
+    def apply(self, img, h_pad_top=0, h_pad_bottom=0, w_pad_left=0, w_pad_right=0, **params):
+        return F.pad(img, h_pad_top=h_pad_top, h_pad_bottom=h_pad_bottom,
+                     w_pad_left=w_pad_left, w_pad_right=w_pad_right,
                      border_mode=self.border_mode, value=self.value)
+
+    def update_params(self, params, **kwargs):
+        params = super(PadIfNeeded, self).update_params(params, **kwargs)
+
+        if params['rows'] < self.min_height:
+            h_pad_top = int((self.min_height - params['rows']) / 2.0)
+            h_pad_bottom = self.min_height - params['rows'] - h_pad_top
+        else:
+            h_pad_top = 0
+            h_pad_bottom = 0
+
+        if params['cols'] < self.min_width:
+            w_pad_left = int((self.min_width - params['cols']) / 2.0)
+            w_pad_right = self.min_width - params['cols'] - w_pad_left
+        else:
+            w_pad_left = 0
+            w_pad_right = 0
+
+        params.update({
+            'h_pad_top': h_pad_top,
+            'h_pad_bottom': h_pad_bottom,
+            'w_pad_left': w_pad_left,
+            'w_pad_right': w_pad_right
+        })
+
+        return params
+
+    def apply_to_bbox(self, bbox, rows=0, cols=0, h_pad_top=0, h_pad_bottom=0,
+                      w_pad_left=0, w_pad_right=0, **params):
+        return F.bbox_pad(
+            bbox, rows, cols, h_pad_top, h_pad_bottom,
+            w_pad_left, w_pad_right, self.border_mode
+        )
 
 
 class Crop(DualTransform):
@@ -61,8 +96,8 @@ class Crop(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, x_min=0, y_min=0, x_max=1024, y_max=1024, always_apply=False, p=1.0):
-        super(Crop, self).__init__(always_apply, p)
+    def __init__(self, x_min=0, y_min=0, x_max=1024, y_max=1024, p=1.0):
+        super(Crop, self).__init__(p)
         self.x_min = x_min
         self.y_min = y_min
         self.x_max = x_max
@@ -178,8 +213,8 @@ class LongestMaxSize(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, max_size=1024, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1):
-        super(LongestMaxSize, self).__init__(always_apply, p)
+    def __init__(self, max_size=1024, interpolation=cv2.INTER_LINEAR, p=1):
+        super(LongestMaxSize, self).__init__(p)
         self.interpolation = interpolation
         self.max_size = max_size
 
@@ -205,8 +240,8 @@ class SmallestMaxSize(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, max_size=1024, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1):
-        super(SmallestMaxSize, self).__init__(always_apply, p)
+    def __init__(self, max_size=1024, interpolation=cv2.INTER_LINEAR, p=1):
+        super(SmallestMaxSize, self).__init__(p)
         self.inteprolation = interpolation
         self.max_size = max_size
 
@@ -235,8 +270,8 @@ class Resize(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, height, width, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1):
-        super(Resize, self).__init__(always_apply, p)
+    def __init__(self, height, width, interpolation=cv2.INTER_LINEAR, p=1):
+        super(Resize, self).__init__(p)
         self.height = height
         self.width = width
         self.interpolation = interpolation
@@ -292,15 +327,14 @@ class Rotate(DualTransform):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask, bboxes
+        image, mask
 
     Image types:
         uint8, float32
     """
 
-    def __init__(self, limit=90, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101,
-                 always_apply=False, p=.5):
-        super(Rotate, self).__init__(always_apply, p)
+    def __init__(self, limit=90, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, p=.5):
+        super(Rotate, self).__init__(p)
         self.limit = to_tuple(limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
@@ -310,9 +344,6 @@ class Rotate(DualTransform):
 
     def get_params(self):
         return {'angle': random.uniform(self.limit[0], self.limit[1])}
-
-    def apply_to_bbox(self, bbox, angle, **params):
-        return F.bbox_rotate(bbox, angle, **params)
 
 
 class RandomScale(DualTransform):
@@ -333,8 +364,8 @@ class RandomScale(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, scale_limit=0.1, interpolation=cv2.INTER_LINEAR, always_apply=False, p=0.5):
-        super(RandomScale, self).__init__(always_apply, p)
+    def __init__(self, scale_limit=0.1, p=0.5, interpolation=cv2.INTER_LINEAR):
+        super(RandomScale, self).__init__(p)
         self.scale_limit = to_tuple(scale_limit)
         self.interpolation = interpolation
 
@@ -376,8 +407,8 @@ class ShiftScaleRotate(DualTransform):
     """
 
     def __init__(self, shift_limit=0.0625, scale_limit=0.1, rotate_limit=45, interpolation=cv2.INTER_LINEAR,
-                 border_mode=cv2.BORDER_REFLECT_101, always_apply=False, p=0.5):
-        super(ShiftScaleRotate, self).__init__(always_apply, p)
+                 border_mode=cv2.BORDER_REFLECT_101, p=0.5):
+        super(ShiftScaleRotate, self).__init__(p)
         self.shift_limit = to_tuple(shift_limit)
         self.scale_limit = to_tuple(scale_limit)
         self.rotate_limit = to_tuple(rotate_limit)
@@ -392,9 +423,6 @@ class ShiftScaleRotate(DualTransform):
                 'scale': random.uniform(1 + self.scale_limit[0], 1 + self.scale_limit[1]),
                 'dx': random.uniform(self.shift_limit[0], self.shift_limit[1]),
                 'dy': random.uniform(self.shift_limit[0], self.shift_limit[1])}
-
-    def apply_to_bbox(self, bbox, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, **params):
-        return F.bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, **params)
 
 
 class CenterCrop(DualTransform):
@@ -417,8 +445,8 @@ class CenterCrop(DualTransform):
         float32 -> uint8 -> float32 that causes worse performance.
     """
 
-    def __init__(self, height, width, always_apply=False, p=1.0):
-        super(CenterCrop, self).__init__(always_apply, p)
+    def __init__(self, height, width, p=1.0):
+        super(CenterCrop, self).__init__(p)
         self.height = height
         self.width = width
 
@@ -444,8 +472,8 @@ class RandomCrop(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, height, width, always_apply=False, p=1.0):
-        super(RandomCrop, self).__init__(always_apply, p)
+    def __init__(self, height, width, p=1.0):
+        super(RandomCrop, self).__init__(p)
         self.height = height
         self.width = width
 
@@ -458,54 +486,6 @@ class RandomCrop(DualTransform):
 
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_random_crop(bbox, self.height, self.width, **params)
-
-
-class RandomCropNearBBox(DualTransform):
-    """Crop bbox from image with random shift by x,y coordinates
-
-    Args:
-        max_part_shift (float): float value in (0.0, 1.0) range. Default 0.3
-        p (float): probability of applying the transform. Default: 1.
-
-    Targets:
-        image
-
-    Image types:
-        uint8, float32
-    """
-
-    def __init__(self, max_part_shift=0.3, always_apply=False, p=1.0):
-        super(RandomCropNearBBox, self).__init__(always_apply, p)
-        self.max_part_shift = max_part_shift
-
-    def apply(self, img, x_min=0, x_max=0, y_min=0, y_max=0, **params):
-        return F.clamping_crop(img, x_min, y_min, x_max, y_max)
-
-    def get_params_dependent_on_targets(self, params):
-        bbox = params['cropping_bbox']
-        h_max_shift = int((bbox[3] - bbox[1]) * self.max_part_shift)
-        w_max_shift = int((bbox[2] - bbox[0]) * self.max_part_shift)
-
-        x_min = bbox[0] - random.randint(-w_max_shift, w_max_shift)
-        x_max = bbox[2] + random.randint(-w_max_shift, w_max_shift)
-
-        y_min = bbox[1] - random.randint(-h_max_shift, h_max_shift)
-        y_max = bbox[3] + random.randint(-h_max_shift, h_max_shift)
-
-        return {'x_min': x_min,
-                'x_max': x_max,
-                'y_min': y_min,
-                'y_max': y_max
-                }
-
-    def apply_to_bbox(self, bbox, x_min=0, x_max=0, y_min=0, y_max=0, **params):
-        h_start = y_min
-        w_start = x_min
-        return F.bbox_crop(bbox, y_max - y_min, x_max - x_min, h_start, w_start, **params)
-
-    @property
-    def targets_as_params(self):
-        return ['cropping_bbox']
 
 
 class RandomSizedCrop(DualTransform):
@@ -528,9 +508,8 @@ class RandomSizedCrop(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, min_max_height, height, width, w2h_ratio=1., interpolation=cv2.INTER_LINEAR,
-                 always_apply=False, p=1.0):
-        super(RandomSizedCrop, self).__init__(always_apply, p)
+    def __init__(self, min_max_height, height, width, w2h_ratio=1., interpolation=cv2.INTER_LINEAR, p=1.0):
+        super(RandomSizedCrop, self).__init__(p)
         self.height = height
         self.width = width
         self.interpolation = interpolation
@@ -542,7 +521,8 @@ class RandomSizedCrop(DualTransform):
         return F.resize(crop, self.height, self.width, interpolation)
 
     def get_params(self):
-        crop_height = random.randint(self.min_max_height[0], self.min_max_height[1])
+        crop_height = random.randint(
+            self.min_max_height[0], self.min_max_height[1])
         return {'h_start': random.random(),
                 'w_start': random.random(),
                 'crop_height': crop_height,
@@ -562,8 +542,8 @@ class OpticalDistortion(DualTransform):
     """
 
     def __init__(self, distort_limit=0.05, shift_limit=0.05, interpolation=cv2.INTER_LINEAR,
-                 border_mode=cv2.BORDER_REFLECT_101, always_apply=False, p=0.5):
-        super(OpticalDistortion, self).__init__(always_apply, p)
+                 border_mode=cv2.BORDER_REFLECT_101, p=0.5):
+        super(OpticalDistortion, self).__init__(p)
         self.shift_limit = to_tuple(shift_limit)
         self.distort_limit = to_tuple(distort_limit)
         self.interpolation = interpolation
@@ -588,8 +568,8 @@ class GridDistortion(DualTransform):
     """
 
     def __init__(self, num_steps=5, distort_limit=0.3, interpolation=cv2.INTER_LINEAR,
-                 border_mode=cv2.BORDER_REFLECT_101, always_apply=False, p=0.5):
-        super(GridDistortion, self).__init__(always_apply, p)
+                 border_mode=cv2.BORDER_REFLECT_101, p=0.5):
+        super(GridDistortion, self).__init__(p)
         self.num_steps = num_steps
         self.distort_limit = to_tuple(distort_limit)
         self.interpolation = interpolation
@@ -619,8 +599,8 @@ class ElasticTransform(DualTransform):
     """
 
     def __init__(self, alpha=1, sigma=50, alpha_affine=50, interpolation=cv2.INTER_LINEAR,
-                 border_mode=cv2.BORDER_REFLECT_101, always_apply=False, p=0.5):
-        super(ElasticTransform, self).__init__(always_apply, p)
+                 border_mode=cv2.BORDER_REFLECT_101, p=0.5):
+        super(ElasticTransform, self).__init__(p)
         self.alpha = alpha
         self.alpha_affine = alpha_affine
         self.sigma = sigma
@@ -650,9 +630,8 @@ class Normalize(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), max_pixel_value=255.0,
-                 always_apply=False, p=1.0):
-        super(Normalize, self).__init__(always_apply, p)
+    def __init__(self, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), max_pixel_value=255.0, p=1.0):
+        super(Normalize, self).__init__(p)
         self.mean = mean
         self.std = std
         self.max_pixel_value = max_pixel_value
@@ -682,8 +661,8 @@ class Cutout(ImageOnlyTransform):
 
     """
 
-    def __init__(self, num_holes=8, max_h_size=8, max_w_size=8, always_apply=False, p=0.5):
-        super(Cutout, self).__init__(always_apply, p)
+    def __init__(self, num_holes=8, max_h_size=8, max_w_size=8, p=0.5):
+        super(Cutout, self).__init__(p)
         self.num_holes = num_holes
         self.max_h_size = max_h_size
         self.max_w_size = max_w_size
@@ -706,8 +685,8 @@ class JpegCompression(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, quality_lower=99, quality_upper=100, always_apply=False, p=0.5):
-        super(JpegCompression, self).__init__(always_apply, p)
+    def __init__(self, quality_lower=99, quality_upper=100, p=0.5):
+        super(JpegCompression, self).__init__(p)
 
         assert 0 <= quality_lower <= 100
         assert 0 <= quality_upper <= 100
@@ -741,8 +720,8 @@ class HueSaturationValue(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, hue_shift_limit=20, sat_shift_limit=30, val_shift_limit=20, always_apply=False, p=0.5):
-        super(HueSaturationValue, self).__init__(always_apply, p)
+    def __init__(self, hue_shift_limit=20, sat_shift_limit=30, val_shift_limit=20, p=0.5):
+        super(HueSaturationValue, self).__init__(p)
         self.hue_shift_limit = to_tuple(hue_shift_limit)
         self.sat_shift_limit = to_tuple(sat_shift_limit)
         self.val_shift_limit = to_tuple(val_shift_limit)
@@ -775,8 +754,8 @@ class RGBShift(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, r_shift_limit=20, g_shift_limit=20, b_shift_limit=20, always_apply=False, p=0.5):
-        super(RGBShift, self).__init__(always_apply, p)
+    def __init__(self, r_shift_limit=20, g_shift_limit=20, b_shift_limit=20, p=0.5):
+        super(RGBShift, self).__init__(p)
         self.r_shift_limit = to_tuple(r_shift_limit)
         self.g_shift_limit = to_tuple(g_shift_limit)
         self.b_shift_limit = to_tuple(b_shift_limit)
@@ -790,14 +769,12 @@ class RGBShift(ImageOnlyTransform):
                 'b_shift': random.uniform(self.b_shift_limit[0], self.b_shift_limit[1])}
 
 
-class RandomBrightnessContrast(ImageOnlyTransform):
-    """Randomly change brightness and contrast of the input image.
+class RandomBrightness(ImageOnlyTransform):
+    """Randomly change brightness of the input image.
 
     Args:
-        brightness_limit ((float, float) or float): factor range for changing brightness.
-            If limit is a single float, the range will be (-limit, limit). Default: 0.2.
-        contrast_limit ((float, float) or float): factor range for changing contrast.
-            If limit is a single float, the range will be (-limit, limit). Default: 0.2.
+        limit ((float, float) or float): factor range for changing brightness. If limit is a single float, the range
+            will be (-limit, limit). Default: 0.2.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -807,32 +784,41 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, brightness_limit=0.2, contrast_limit=0.2, always_apply=False, p=0.5):
-        super(RandomBrightnessContrast, self).__init__(always_apply, p)
-        self.brightness_limit = to_tuple(brightness_limit)
-        self.contrast_limit = to_tuple(contrast_limit)
+    def __init__(self, limit=0.2, p=0.5):
+        super(RandomBrightness, self).__init__(p)
+        self.limit = to_tuple(limit)
 
-    def apply(self, img, alpha=1., beta=0., **params):
-        return F.brightness_contrast_adjust(img, alpha, beta)
+    def apply(self, img, alpha=0.2, **params):
+        return F.random_brightness(img, alpha)
 
     def get_params(self):
-        return {
-            'alpha': 1.0 + random.uniform(self.contrast_limit[0], self.contrast_limit[1]),
-            'beta': 0.0 + random.uniform(self.brightness_limit[0], self.brightness_limit[1])
-        }
+        return {'alpha': 1.0 + random.uniform(self.limit[0], self.limit[1])}
 
 
-class RandomBrightness(RandomBrightnessContrast):
-    def __init__(self, limit=0.2, always_apply=False, p=0.5):
-        super(RandomBrightness, self).__init__(brightness_limit=limit, contrast_limit=0,
-                                               always_apply=always_apply, p=p)
-        warnings.warn("This class has been deprecated. Please use RandomBrightnessContrast", DeprecationWarning)
+class RandomContrast(ImageOnlyTransform):
+    """Randomly change contrast of the input image.
 
+    Args:
+        limit ((float, float) or float): factor range for changing contrast. If limit is a single float, the range
+            will be (-limit, limit). Default: 0.2.
+        p (float): probability of applying the transform. Default: 0.5.
 
-class RandomContrast(RandomBrightnessContrast):
-    def __init__(self, limit=0.2, always_apply=False, p=0.5):
-        super(RandomContrast, self).__init__(brightness_limit=0, contrast_limit=limit, always_apply=always_apply, p=p)
-        warnings.warn("This class has been deprecated. Please use RandomBrightnessContrast", DeprecationWarning)
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, limit=.2, p=.5):
+        super(RandomContrast, self).__init__(p)
+        self.limit = to_tuple(limit)
+
+    def apply(self, img, alpha=0.2, **params):
+        return F.random_contrast(img, alpha)
+
+    def get_params(self):
+        return {'alpha': 1.0 + random.uniform(self.limit[0], self.limit[1])}
 
 
 class Blur(ImageOnlyTransform):
@@ -849,8 +835,8 @@ class Blur(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, blur_limit=7, always_apply=False, p=.5):
-        super(Blur, self).__init__(always_apply, p)
+    def __init__(self, blur_limit=7, p=.5):
+        super(Blur, self).__init__(p)
         self.blur_limit = to_tuple(blur_limit, 3)
 
     def apply(self, image, ksize=3, **params):
@@ -894,8 +880,9 @@ class MedianBlur(Blur):
         uint8, float32
     """
 
-    def __init__(self, blur_limit=7, always_apply=False, p=0.5):
-        super(MedianBlur, self).__init__(blur_limit, always_apply, p)
+    def __init__(self, blur_limit=7, p=0.5):
+        super(MedianBlur, self).__init__(p)
+        self.blur_limit = to_tuple(blur_limit, 3)
 
     def apply(self, image, ksize=3, **params):
         return F.median_blur(image, ksize)
@@ -916,8 +903,8 @@ class GaussNoise(ImageOnlyTransform):
         uint8
     """
 
-    def __init__(self, var_limit=(10, 50), always_apply=False, p=0.5):
-        super(GaussNoise, self).__init__(always_apply, p)
+    def __init__(self, var_limit=(10, 50), p=0.5):
+        super(GaussNoise, self).__init__(p)
         self.var_limit = to_tuple(var_limit)
 
     def apply(self, img, var=30, **params):
@@ -944,8 +931,8 @@ class CLAHE(ImageOnlyTransform):
         uint8
     """
 
-    def __init__(self, clip_limit=4.0, tile_grid_size=(8, 8), always_apply=False, p=0.5):
-        super(CLAHE, self).__init__(always_apply, p)
+    def __init__(self, clip_limit=4.0, tile_grid_size=(8, 8), p=0.5):
+        super(CLAHE, self).__init__(p)
         self.clip_limit = to_tuple(clip_limit, 1)
         self.tile_grid_size = tile_grid_size
 
@@ -999,8 +986,8 @@ class RandomGamma(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, gamma_limit=(80, 120), always_apply=False, p=0.5):
-        super(RandomGamma, self).__init__(always_apply, p)
+    def __init__(self, gamma_limit=(80, 120), p=0.5):
+        super(RandomGamma, self).__init__(p)
         self.gamma_limit = gamma_limit
 
     def apply(self, img, gamma=1, **params):
@@ -1050,8 +1037,8 @@ class ToFloat(ImageOnlyTransform):
 
     """
 
-    def __init__(self, max_value=None, always_apply=False, p=1.0):
-        super(ToFloat, self).__init__(always_apply, p)
+    def __init__(self, max_value=None, p=1.0):
+        super(ToFloat, self).__init__(p)
         self.max_value = max_value
 
     def apply(self, img, **params):
@@ -1081,8 +1068,8 @@ class FromFloat(ImageOnlyTransform):
        https://docs.scipy.org/doc/numpy/user/basics.types.html
     """
 
-    def __init__(self, dtype='uint16', max_value=None, always_apply=False, p=1.0):
-        super(FromFloat, self).__init__(always_apply, p)
+    def __init__(self, dtype='uint16', max_value=None, p=1.0):
+        super(FromFloat, self).__init__(p)
         self.dtype = np.dtype(dtype)
         self.max_value = max_value
 

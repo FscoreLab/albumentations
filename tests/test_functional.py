@@ -1,12 +1,13 @@
 from __future__ import absolute_import
 
-import cv2
 import numpy as np
 from numpy.testing import assert_array_almost_equal_nulp
-import pytest
 
-from albumentations.augmentations.bbox_utils import filter_bboxes
 import albumentations.augmentations.functional as F
+import cv2
+import pytest
+from albumentations.augmentations.bbox_utils import filter_bboxes
+
 from .utils import convert_2d_to_target_format
 
 
@@ -115,7 +116,8 @@ def test_transpose(input_shape, expected_shape):
     [(128, 64, 3), (64, 128, 3)],
 ])
 def test_transpose_float(input_shape, expected_shape):
-    img = np.random.uniform(low=0.0, high=1.0, size=input_shape).astype('float32')
+    img = np.random.uniform(
+        low=0.0, high=1.0, size=input_shape).astype('float32')
     transposed = F.transpose(img)
     assert transposed.shape == expected_shape
 
@@ -172,7 +174,8 @@ def test_compare_rotate_and_shift_scale_rotate(image):
 
 def test_compare_rotate_float_and_shift_scale_rotate_float(float_image):
     rotated_img_1 = F.rotate(float_image, angle=60)
-    rotated_img_2 = F.shift_scale_rotate(float_image, angle=60, scale=1, dx=0, dy=0)
+    rotated_img_2 = F.shift_scale_rotate(
+        float_image, angle=60, scale=1, dx=0, dy=0)
     assert np.array_equal(rotated_img_1, rotated_img_2)
 
 
@@ -210,7 +213,8 @@ def test_center_crop_with_incorrectly_large_crop_size():
     img = np.ones((4, 4), dtype=np.uint8)
     with pytest.raises(ValueError) as exc_info:
         F.center_crop(img, 8, 8)
-    assert str(exc_info.value) == 'Requested crop size (8, 8) is larger than the image size (4, 4)'
+    assert str(
+        exc_info.value) == 'Requested crop size (8, 8) is larger than the image size (4, 4)'
 
 
 @pytest.mark.parametrize('target', ['image', 'mask'])
@@ -224,7 +228,8 @@ def test_random_crop(target):
         [[5, 6],
          [9, 10]], dtype=np.uint8)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    cropped_img = F.random_crop(img, crop_height=2, crop_width=2, h_start=0.5, w_start=0)
+    cropped_img = F.random_crop(
+        img, crop_height=2, crop_width=2, h_start=0.5, w_start=0)
     assert np.array_equal(cropped_img, expected)
 
 
@@ -239,7 +244,8 @@ def test_random_crop_float(target):
         [[0.05, 0.06],
          [0.09, 0.10]], dtype=np.float32)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    cropped_img = F.random_crop(img, crop_height=2, crop_width=2, h_start=0.5, w_start=0)
+    cropped_img = F.random_crop(
+        img, crop_height=2, crop_width=2, h_start=0.5, w_start=0)
     assert_array_almost_equal_nulp(cropped_img, expected)
 
 
@@ -247,7 +253,8 @@ def test_random_crop_with_incorrectly_large_crop_size():
     img = np.ones((4, 4), dtype=np.uint8)
     with pytest.raises(ValueError) as exc_info:
         F.random_crop(img, crop_height=8, crop_width=8, h_start=0, w_start=0)
-    assert str(exc_info.value) == 'Requested crop size (8, 8) is larger than the image size (4, 4)'
+    assert str(
+        exc_info.value) == 'Requested crop size (8, 8) is larger than the image size (4, 4)'
 
 
 def test_clip():
@@ -283,7 +290,8 @@ def test_pad(target):
          [4, 3, 4, 3],
          [2, 1, 2, 1]], dtype=np.uint8)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    padded = F.pad(img, min_height=4, min_width=4)
+    padded = F.pad(img, h_pad_top=1, h_pad_bottom=1,
+                   w_pad_left=1, w_pad_right=1)
     assert np.array_equal(padded, expected)
 
 
@@ -298,8 +306,21 @@ def test_pad_float(target):
          [0.4, 0.3, 0.4, 0.3],
          [0.2, 0.1, 0.2, 0.1]], dtype=np.float32)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    padded_img = F.pad(img, min_height=4, min_width=4)
+    padded_img = F.pad(img, h_pad_top=1, h_pad_bottom=1,
+                       w_pad_left=1, w_pad_right=1)
     assert_array_almost_equal_nulp(padded_img, expected)
+
+
+@pytest.mark.parametrize(
+    'bbox,expected,height,width,h_pad_top,h_pad_bottom,w_pad_left,w_pad_right',
+    [([0.0, 0.0, 1.0, 1.0], [0.25, 0.25, 0.75, 0.75], 64, 64, 32, 32, 32, 32),
+     ([0.25, 0.5, 0.5, 0.75], [0.375, 0.5, 0.5, 0.75], 64, 64, 0, 0, 32, 32)])
+def test_bbox_pad(bbox, expected, height, width, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right):
+    padded_bbox = F.bbox_pad(
+        bbox, height=height, width=width, h_pad_top=h_pad_top, h_pad_bottom=h_pad_bottom,
+        w_pad_left=w_pad_left, w_pad_right=w_pad_right, border_mode=cv2.BORDER_CONSTANT
+    )
+    assert_array_almost_equal_nulp(np.array(padded_bbox), np.array(expected))
 
 
 @pytest.mark.parametrize('target', ['image', 'mask'])
@@ -478,35 +499,35 @@ def test_shift_rgb_float(shift_params, expected):
 
 
 @pytest.mark.parametrize(['alpha', 'expected'], [(1.5, 190), (3, 255)])
-def test_random_contrast(alpha, expected):
+def test_random_brightness(alpha, expected):
     img = np.ones((100, 100, 3), dtype=np.uint8) * 127
-    img = F.brightness_contrast_adjust(img, alpha=alpha)
+    img = F.random_brightness(img, alpha)
     assert img.dtype == np.dtype('uint8')
     assert (img == expected).all()
 
 
 @pytest.mark.parametrize(['alpha', 'expected'], [(1.5, 0.6), (3, 1.0)])
-def test_random_contrast_float(alpha, expected):
+def test_random_brightness_float(alpha, expected):
     img = np.ones((100, 100, 3), dtype=np.float32) * 0.4
     expected = np.ones((100, 100, 3), dtype=np.float32) * expected
-    img = F.brightness_contrast_adjust(img, alpha=alpha)
+    img = F.random_brightness(img, alpha)
     assert img.dtype == np.dtype('float32')
     assert_array_almost_equal_nulp(img, expected)
 
 
-@pytest.mark.parametrize(['beta', 'expected'], [(-0.5, 50), (0.25, 125)])
-def test_random_brightness(beta, expected):
-    img = np.ones((100, 100, 3), dtype=np.uint8) * 100
-    img = F.brightness_contrast_adjust(img, beta=beta)
+@pytest.mark.parametrize(['alpha', 'expected'], [(1.2, 76), (0.1, 255), (10, 0)])
+def test_random_contrast(alpha, expected):
+    img = np.ones((100, 100, 3), dtype=np.uint8) * 127
+    img = F.random_contrast(img, alpha)
     assert img.dtype == np.dtype('uint8')
     assert (img == expected).all()
 
 
-@pytest.mark.parametrize(['beta', 'expected'], [(0.2, 0.48), (-0.1, 0.36)])
-def test_random_brightness_float(beta, expected):
+@pytest.mark.parametrize(['alpha', 'expected'], [(1.2, 0.24), (0.1, 1.0), (10, 0.0)])
+def test_random_contrast_float(alpha, expected):
     img = np.ones((100, 100, 3), dtype=np.float32) * 0.4
-    expected = np.ones_like(img) * expected
-    img = F.brightness_contrast_adjust(img, beta=beta)
+    expected = np.ones((100, 100, 3), dtype=np.float32) * expected
+    img = F.random_contrast(img, alpha)
     assert img.dtype == np.dtype('float32')
     assert_array_almost_equal_nulp(img, expected)
 
@@ -539,7 +560,8 @@ def test_to_float_without_max_value_specified(dtype, divider):
 def test_to_float_with_max_value_specified(max_value):
     img = np.ones((100, 100, 3), dtype=np.uint16)
     expected = img.astype('float32') / max_value
-    assert_array_almost_equal_nulp(F.to_float(img, max_value=max_value), expected)
+    assert_array_almost_equal_nulp(
+        F.to_float(img, max_value=max_value), expected)
 
 
 def test_to_float_unknown_dtype():
@@ -556,7 +578,8 @@ def test_to_float_unknown_dtype():
 def test_to_float_unknown_dtype_with_max_value(max_value):
     img = np.ones((100, 100, 3), dtype=np.int16)
     expected = img.astype('float32') / max_value
-    assert_array_almost_equal_nulp(F.to_float(img, max_value=max_value), expected)
+    assert_array_almost_equal_nulp(
+        F.to_float(img, max_value=max_value), expected)
 
 
 @pytest.mark.parametrize(['dtype', 'multiplier'], [(np.uint8, 255), (np.uint16, 65535), (np.uint32, 4294967295)])
@@ -570,7 +593,8 @@ def test_from_float_without_max_value_specified(dtype, multiplier):
 def test_from_float_with_max_value_specified(max_value):
     img = np.ones((100, 100, 3), dtype=np.float32)
     expected = (img * max_value).astype(np.uint32)
-    assert_array_almost_equal_nulp(F.from_float(img, dtype=np.uint32, max_value=max_value), expected)
+    assert_array_almost_equal_nulp(F.from_float(
+        img, dtype=np.uint32, max_value=max_value), expected)
 
 
 @pytest.mark.parametrize('target', ['image', 'mask'])
@@ -623,7 +647,8 @@ def test_smallest_max_size(target):
         [17, 19, 20, 22]], dtype=np.uint8)
 
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    scaled = F.smallest_max_size(img, max_size=3, interpolation=cv2.INTER_LINEAR)
+    scaled = F.smallest_max_size(
+        img, max_size=3, interpolation=cv2.INTER_LINEAR)
     assert np.array_equal(scaled, expected)
 
 
@@ -741,7 +766,8 @@ def test_bbox_hflip():
 @pytest.mark.parametrize(['code', 'func'], [
     [0, F.bbox_vflip],
     [1, F.bbox_hflip],
-    [-1, lambda bbox, rows, cols: F.bbox_vflip(F.bbox_hflip(bbox, rows, cols), rows, cols)],
+    [-1, lambda bbox, rows,
+        cols: F.bbox_vflip(F.bbox_hflip(bbox, rows, cols), rows, cols)],
 ])
 def test_bbox_flip(code, func):
     rows, cols = 100, 200
@@ -750,7 +776,8 @@ def test_bbox_flip(code, func):
 
 
 def test_crop_bbox_by_coords():
-    cropped_bbox = F.crop_bbox_by_coords([0.5, 0.2, 0.9, 0.7], (18, 18, 82, 82), 64, 64, 100, 100)
+    cropped_bbox = F.crop_bbox_by_coords(
+        [0.5, 0.2, 0.9, 0.7], (18, 18, 82, 82), 64, 64, 100, 100)
     assert cropped_bbox == [0.5, 0.03125, 1.125, 0.8125]
 
 
@@ -765,20 +792,27 @@ def test_bbox_crop():
 
 
 def test_bbox_random_crop():
-    cropped_bbox = F.bbox_random_crop([0.5, 0.2, 0.9, 0.7], 80, 80, 0.2, 0.1, 100, 100)
+    cropped_bbox = F.bbox_random_crop(
+        [0.5, 0.2, 0.9, 0.7], 80, 80, 0.2, 0.1, 100, 100)
     assert cropped_bbox == [0.6, 0.2, 1.1, 0.825]
 
 
 def test_bbox_rot90():
-    assert F.bbox_rot90([0.1, 0.2, 0.3, 0.4], 0, 100, 200) == [0.1, 0.2, 0.3, 0.4]
-    assert F.bbox_rot90([0.1, 0.2, 0.3, 0.4], 1, 100, 200) == [0.2, 0.7, 0.4, 0.9]
-    assert F.bbox_rot90([0.1, 0.2, 0.3, 0.4], 2, 100, 200) == [0.7, 0.6, 0.9, 0.8]
-    assert F.bbox_rot90([0.1, 0.2, 0.3, 0.4], 3, 100, 200) == [0.6, 0.1, 0.8, 0.3]
+    assert F.bbox_rot90([0.1, 0.2, 0.3, 0.4], 0, 100, 200) == [
+        0.1, 0.2, 0.3, 0.4]
+    assert F.bbox_rot90([0.1, 0.2, 0.3, 0.4], 1, 100, 200) == [
+        0.2, 0.7, 0.4, 0.9]
+    assert F.bbox_rot90([0.1, 0.2, 0.3, 0.4], 2, 100, 200) == [
+        0.7, 0.6, 0.9, 0.8]
+    assert F.bbox_rot90([0.1, 0.2, 0.3, 0.4], 3, 100, 200) == [
+        0.6, 0.1, 0.8, 0.3]
 
 
 def test_bbox_transpose():
-    assert np.allclose(F.bbox_transpose([0.7, 0.1, 0.8, 0.4], 0, 100, 200), [0.1, 0.7, 0.4, 0.8])
-    assert np.allclose(F.bbox_transpose([0.7, 0.1, 0.8, 0.4], 1, 100, 200), [0.6, 0.2, 0.9, 0.3])
+    assert np.allclose(F.bbox_transpose(
+        [0.7, 0.1, 0.8, 0.4], 0, 100, 200), [0.1, 0.7, 0.4, 0.8])
+    assert np.allclose(F.bbox_transpose(
+        [0.7, 0.1, 0.8, 0.4], 1, 100, 200), [0.6, 0.2, 0.9, 0.3])
 
 
 @pytest.mark.parametrize(['bboxes', 'min_area', 'min_visibility', 'target'], [
@@ -792,5 +826,6 @@ def test_bbox_transpose():
      0, 0.7, [[0.1, 0.5, 0.8, 0.9], [0.4, 0.7, 0.5, 1.0]]],
 ])
 def test_filter_bboxes(bboxes, min_area, min_visibility, target):
-    filtered_bboxes = filter_bboxes(bboxes, min_area=min_area, min_visibility=min_visibility, rows=100, cols=100)
+    filtered_bboxes = filter_bboxes(
+        bboxes, min_area=min_area, min_visibility=min_visibility, rows=100, cols=100)
     assert filtered_bboxes == target
