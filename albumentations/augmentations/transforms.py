@@ -2,9 +2,8 @@ from __future__ import absolute_import, division
 
 import random
 
-import numpy as np
-
 import cv2
+import numpy as np
 
 from . import functional as F
 from ..core.transforms_interface import (DualTransform, ImageOnlyTransform,
@@ -163,6 +162,10 @@ class Flip(DualTransform):
         uint8, float32
     """
 
+    def __init__(self, d=None, p=1):
+        super(Flip, self).__init__(p)
+        self.d = d
+
     def apply(self, img, d=0, **params):
         """Args:
         d (int): code that specifies how to flip the input. 0 for vertical flipping, 1 for horizontal flipping,
@@ -173,7 +176,10 @@ class Flip(DualTransform):
 
     def get_params(self):
         # Random int in the range [-1, 1]
-        return {'d': random.randint(-1, 1)}
+        if self.d is None:
+            return {'d': random.randint(-1, 1)}
+        else:
+            return {'d': self.d}
 
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_flip(bbox, **params)
@@ -314,7 +320,6 @@ class RandomRotate90(DualTransform):
 
 class Rotate(DualTransform):
     """Rotate the input by an angle selected randomly from the uniform distribution.
-
     Args:
         limit ((int, int) or int): range from which a random angle is picked. If limit is a single int
             an angle is picked from (-limit, limit). Default: 90
@@ -325,16 +330,15 @@ class Rotate(DualTransform):
             cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
             Default: cv2.BORDER_REFLECT_101
         p (float): probability of applying the transform. Default: 0.5.
-
     Targets:
-        image, mask
-
+        image, mask, bboxes
     Image types:
         uint8, float32
     """
 
-    def __init__(self, limit=90, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, p=.5):
-        super(Rotate, self).__init__(p)
+    def __init__(self, limit=90, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101,
+                 always_apply=False, p=.5):
+        super(Rotate, self).__init__(always_apply, p)
         self.limit = to_tuple(limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
@@ -344,6 +348,9 @@ class Rotate(DualTransform):
 
     def get_params(self):
         return {'angle': random.uniform(self.limit[0], self.limit[1])}
+
+    def apply_to_bbox(self, bbox, angle, **params):
+        return F.bbox_rotate(bbox, angle, **params)
 
 
 class RandomScale(DualTransform):
