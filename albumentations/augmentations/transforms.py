@@ -10,7 +10,7 @@ from ..core.transforms_interface import (DualTransform, ImageOnlyTransform,
                                          to_tuple)
 
 __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Transpose', 'RandomCrop', 'RandomGamma',
-           'RandomRotate90', 'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion',
+           'RandomRotate90', 'Rotate90', 'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion',
            'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift', 'RandomBrightness', 'RandomContrast',
            'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
            'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize',
@@ -316,6 +316,30 @@ class RandomRotate90(DualTransform):
 
     def apply_to_bbox(self, bbox, factor=0, **params):
         return F.bbox_rot90(bbox, factor, **params)
+
+
+class Rotate90(DualTransform):
+    """Rotate the input by 90 degrees one time.
+
+    Args:
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image, mask, bboxes
+
+    Image types:
+        uint8, float32
+    """
+
+    def apply(self, img, **params):
+        """
+        Args:
+            factor (int): number of times the input will be rotated by 90 degrees.
+        """
+        return np.ascontiguousarray(np.rot90(img, 1))
+
+    def apply_to_bbox(self, bbox, **params):
+        return F.bbox_rot90(bbox, 1, **params)
 
 
 class Rotate(DualTransform):
@@ -668,8 +692,8 @@ class Cutout(ImageOnlyTransform):
 
     """
 
-    def __init__(self, num_holes=8, max_h_size=8, max_w_size=8, p=0.5):
-        super(Cutout, self).__init__(p)
+    def __init__(self, num_holes=8, max_h_size=8, max_w_size=8, p=0.5, always_apply=False):
+        super(Cutout, self).__init__(p, always_apply)
         self.num_holes = num_holes
         self.max_h_size = max_h_size
         self.max_w_size = max_w_size

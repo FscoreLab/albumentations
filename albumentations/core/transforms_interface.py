@@ -14,7 +14,7 @@ def to_tuple(param, low=None):
 
 
 class BasicTransform(object):
-    def __init__(self, always_apply=False, p=0.5):
+    def __init__(self, p=0.5, always_apply=False):
         self.p = p
         self.always_apply = always_apply
         self._additional_targets = {}
