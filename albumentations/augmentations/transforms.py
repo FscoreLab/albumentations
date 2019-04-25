@@ -280,14 +280,15 @@ class Resize(DualTransform):
         super(Resize, self).__init__(p)
         self.height = height
         self.width = width
+        self.height_old = None
+        self.width_old = None
         self.interpolation = interpolation
 
     def apply(self, img, interpolation=cv2.INTER_LINEAR, **params):
         return F.resize(img, height=self.height, width=self.width, interpolation=interpolation)
 
     def apply_to_bbox(self, bbox, **params):
-        # Bounding box coordinates are scale invariant
-        return bbox
+        return F.bbox_resize(bbox, height=self.height, width=self.width, **params)
 
 
 class RandomRotate90(DualTransform):

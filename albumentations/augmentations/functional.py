@@ -607,6 +607,11 @@ def bbox_flip(bbox, d, rows, cols):
     return bbox
 
 
+def bbox_resize(bbox, height, width, rows, cols, interpolation=None):
+    bbox = normalize_bbox(bbox, rows, cols)
+    return denormalize_bbox(bbox, height, width)
+
+
 def crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols):
     """Crop a bounding box using the provided coordinates of bottom-left and top-right corners in pixels and the
     required height and width of the crop.
