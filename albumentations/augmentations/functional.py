@@ -135,7 +135,7 @@ def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_RE
     height, width = img.shape[:2]
     matrix = cv2.getRotationMatrix2D((width / 2, height / 2), angle, 1.0)
     img = cv2.warpAffine(img, matrix, (width, height),
-                       flags=interpolation, borderMode=border_mode, borderValue=value)
+                         flags=interpolation, borderMode=border_mode, borderValue=value)
     return img
 
 
@@ -162,7 +162,7 @@ def shift_scale_rotate(img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR
     matrix[0, 2] += dx * width
     matrix[1, 2] += dy * height
     img = cv2.warpAffine(img, matrix, (width, height),
-                       flags=interpolation, borderMode=border_mode, borderValue=value)
+                         flags=interpolation, borderMode=border_mode, borderValue=value)
     return img
 
 
@@ -707,10 +707,10 @@ def optical_distortion(img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, bor
     distortion = np.array([k, k, 0, 0, 0], dtype=np.float32)
 
     map1, map2 = cv2.initUndistortRectifyMap(
-      camera_matrix, distortion, None, None, (width, height), cv2.CV_32FC1)
+        camera_matrix, distortion, None, None, (width, height), cv2.CV_32FC1)
     img = cv2.remap(img, map1, map2, interpolation=interpolation,
                     borderMode=border_mode, borderValue=value)
-  return img
+    return img
 
 
 @preserve_shape
@@ -757,7 +757,7 @@ def grid_distortion(img, num_steps=10, xsteps=[], ysteps=[], interpolation=cv2.I
     map_y = map_y.astype(np.float32)
 
     img = cv2.remap(img, map_x, map_y, interpolation=interpolation,
-                  borderMode=border_mode, borderValue=value)
+                    borderMode=border_mode, borderValue=value)
     return img
 
 
@@ -791,9 +791,9 @@ def elastic_transform(image, alpha, sigma, alpha_affine, interpolation=cv2.INTER
     matrix = cv2.getAffineTransform(pts1, pts2)
 
     image = cv2.warpAffine(image, matrix, (width, height), flags=interpolation,
-    borderMode=border_mode, borderValue=value)
+                           borderMode=border_mode, borderValue=value)
 
-   if approximate:
+    if approximate:
         # Approximate computation smooth displacement map with a large enough kernel.
         # On large images (512+) this is approximately 2X times faster
         dx = (random_state.rand(height, width).astype(np.float32) * 2 - 1)
@@ -822,7 +822,6 @@ def elastic_transform_approx(image, alpha, sigma, alpha_affine, interpolation=cv
                              border_mode=cv2.BORDER_REFLECT_101, value=None, random_state=None):
     """Elastic deformation of images as described in [Simard2003]_ (with modifications for speed).
     Based on https://gist.github.com/erniejunior/601cdf56d2b424757de5
-
     .. [Simard2003] Simard, Steinkraus and Platt, "Best Practices for
          Convolutional Neural Networks applied to Visual Document Analysis", in
          Proc. of the International Conference on Document Analysis and
@@ -857,11 +856,9 @@ def elastic_transform_approx(image, alpha, sigma, alpha_affine, interpolation=cv
     cv2.GaussianBlur(dy, (17, 17), sigma, dst=dy)
     dy *= alpha
 
->>>>>> > 4e30d36ed73627b03e438531f174d2bf1e4bccfe
+    x, y = np.meshgrid(np.arange(width), np.arange(height))
 
-  x, y = np.meshgrid(np.arange(width), np.arange(height))
-
-   mapx = np.float32(x + dx)
+    mapx = np.float32(x + dx)
     mapy = np.float32(y + dy)
 
     return cv2.remap(image, mapx, mapy, interpolation, borderMode=border_mode, borderValue=value)
@@ -947,17 +944,14 @@ def brightness_contrast_adjust(img, alpha=1, beta=0):
 def iso_noise(image, color_shift=0.05, intensity=0.5, random_state=None, **kwargs):
     """
     Apply poisson noise to image to simulate camera sensor noise.
-
     Args:
         image: Input image, currently, only RGB, uint8 images are supported.
         intensity: Multiplication factor for noise values. Values of ~0.5 are produce noticeable,
                    yet acceptable level of noise.
         random_state:
         **kwargs:
-
     Returns:
         Noised image
-
     """
     assert image.dtype == np.uint8, 'Image must have uint8 channel type'
     assert image.shape[2] == 3, 'Image must be RGB'
@@ -985,8 +979,6 @@ def iso_noise(image, color_shift=0.05, intensity=0.5, random_state=None, **kwarg
 
     image = cv2.cvtColor(hls, cv2.COLOR_HLS2RGB) * 255
     return image.astype(np.uint8)
-
->>>>>> > 4e30d36ed73627b03e438531f174d2bf1e4bccfe
 
 
 @clipped
@@ -1044,7 +1036,6 @@ def bbox_pad(bbox, height, width, h_pad_top, h_pad_bottom, w_pad_left, w_pad_rig
     else:
         raise ValueError('Unsupported padding border mode for boudning boxes: '
                          'use cv2.BORDER_CONSTANT instead.')
-
 
 
 def bbox_vflip(bbox, rows, cols):
