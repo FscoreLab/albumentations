@@ -16,7 +16,7 @@ from .bbox_utils import denormalize_bbox, normalize_bbox, union_of_bboxes
 
 __all__ = [
     'Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Transpose',
-    'RandomCrop', 'RandomGamma', 'RandomRotate90', 'Rotate',
+    'RandomCrop', 'RandomGamma', 'RandomRotate90', 'Rotate', 'Rotate90',
     'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion',
     'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift',
     'RandomBrightness', 'RandomContrast', 'MotionBlur', 'MedianBlur',
