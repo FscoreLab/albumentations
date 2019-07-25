@@ -1,8 +1,13 @@
 import imgaug as ia
-from imgaug import augmenters as iaa
+try:
+    from imgaug import augmenters as iaa
+except ImportError:
+    import imgaug.imgaug.augmenters as iaa
 
 from ..augmentations.bbox_utils import convert_bboxes_from_albumentations, \
     convert_bboxes_to_albumentations
+from ..augmentations.keypoints_utils import convert_keypoints_from_albumentations, \
+    convert_keypoints_to_albumentations
 from ..core.transforms_interface import BasicTransform, DualTransform, ImageOnlyTransform, to_tuple
 
 __all__ = ['BasicIAATransform', 'DualIAATransform', 'ImageOnlyIAATransform', 'IAAEmboss', 'IAASuperpixels',
@@ -11,6 +16,7 @@ __all__ = ['BasicIAATransform', 'DualIAATransform', 'ImageOnlyIAATransform', 'IA
 
 
 class BasicIAATransform(BasicTransform):
+
     def __init__(self, always_apply=False, p=0.5):
         super(BasicIAATransform, self).__init__(always_apply, p)
 
@@ -31,6 +37,7 @@ class BasicIAATransform(BasicTransform):
 
 
 class DualIAATransform(DualTransform, BasicIAATransform):
+
     def apply_to_bboxes(self, bboxes, deterministic_processor=None, rows=0, cols=0, **params):
         if len(bboxes):
             bboxes = convert_bboxes_from_albumentations(bboxes, 'pascal_voc', rows=rows, cols=cols)
@@ -43,12 +50,32 @@ class DualIAATransform(DualTransform, BasicIAATransform):
             bboxes = convert_bboxes_to_albumentations(bboxes_t, 'pascal_voc', rows=rows, cols=cols)
         return bboxes
 
+    """Applies transformation to keypoints.
+    Notes:
+        Since IAA supports only xy keypoints, scale and orientation will remain unchanged.
+    TODO:
+        Emit a warning message if child classes of DualIAATransform are instantiated
+        inside Compose with keypoints format other than 'xy'.
+    """
+
+    def apply_to_keypoints(self, keypoints, deterministic_processor=None, rows=0, cols=0, **params):
+        if len(keypoints):
+            keypoints = convert_keypoints_from_albumentations(keypoints, 'xy', rows=rows, cols=cols)
+            keypoints_t = ia.KeypointsOnImage([ia.Keypoint(*kp[:2]) for kp in keypoints], (rows, cols))
+            keypoints_t = deterministic_processor.augment_keypoints([keypoints_t])[0].keypoints
+
+            bboxes_t = [[kp.x, kp.y] + list(kp_orig[2:]) for (kp, kp_orig) in zip(keypoints_t, keypoints)]
+
+            keypoints = convert_keypoints_to_albumentations(bboxes_t, 'xy', rows=rows, cols=cols)
+        return keypoints
+
 
 class ImageOnlyIAATransform(ImageOnlyTransform, BasicIAATransform):
     pass
 
 
 class IAACropAndPad(DualIAATransform):
+
     def __init__(self, px=None, percent=None, pad_mode='constant', pad_cval=0, keep_size=True,
                  always_apply=False, p=1):
         super(IAACropAndPad, self).__init__(always_apply, p)
@@ -62,17 +89,28 @@ class IAACropAndPad(DualIAATransform):
     def processor(self):
         return iaa.CropAndPad(self.px, self.percent, self.pad_mode, self.pad_cval, self.keep_size)
 
+    def get_transform_init_args_names(self):
+        return ('px', 'percent', 'pad_mode', 'pad_cval', 'keep_size')
+
 
 class IAAFliplr(DualIAATransform):
+
     @property
     def processor(self):
         return iaa.Fliplr(1)
 
+    def get_transform_init_args_names(self):
+        return ()
+
 
 class IAAFlipud(DualIAATransform):
+
     @property
     def processor(self):
         return iaa.Flipud(1)
+
+    def get_transform_init_args_names(self):
+        return ()
 
 
 class IAAEmboss(ImageOnlyIAATransform):
@@ -96,6 +134,9 @@ class IAAEmboss(ImageOnlyIAATransform):
     @property
     def processor(self):
         return iaa.Emboss(self.alpha, self.strength)
+
+    def get_transform_init_args_names(self):
+        return ('alpha', 'strength')
 
 
 class IAASuperpixels(ImageOnlyIAATransform):
@@ -121,6 +162,9 @@ class IAASuperpixels(ImageOnlyIAATransform):
     def processor(self):
         return iaa.Superpixels(p_replace=self.p_replace, n_segments=self.n_segments)
 
+    def get_transform_init_args_names(self):
+        return ('p_replace', 'n_segments')
+
 
 class IAASharpen(ImageOnlyIAATransform):
     """Sharpen the input image and overlays the result with the original image.
@@ -143,6 +187,9 @@ class IAASharpen(ImageOnlyIAATransform):
     @property
     def processor(self):
         return iaa.Sharpen(self.alpha, self.lightness)
+
+    def get_transform_init_args_names(self):
+        return ('alpha', 'lightness')
 
 
 class IAAAdditiveGaussianNoise(ImageOnlyIAATransform):
@@ -167,6 +214,9 @@ class IAAAdditiveGaussianNoise(ImageOnlyIAATransform):
     @property
     def processor(self):
         return iaa.AdditiveGaussianNoise(self.loc, self.scale, self.per_channel)
+
+    def get_transform_init_args_names(self):
+        return ('loc', 'scale', 'per_channel')
 
 
 class IAAPiecewiseAffine(DualIAATransform):
@@ -199,6 +249,9 @@ class IAAPiecewiseAffine(DualIAATransform):
     def processor(self):
         return iaa.PiecewiseAffine(self.scale, self.nb_rows, self.nb_cols, self.order, self.cval, self.mode)
 
+    def get_transform_init_args_names(self):
+        return ('scale', 'nb_rows', 'nb_cols', 'order', 'cval', 'mode')
+
 
 class IAAAffine(DualIAATransform):
     """Place a regular grid of points on the input and randomly move the neighbourhood of these point around
@@ -230,6 +283,9 @@ class IAAAffine(DualIAATransform):
         return iaa.Affine(self.scale, self.translate_percent, self.translate_px, self.rotate, self.shear,
                           self.order, self.cval, self.mode)
 
+    def get_transform_init_args_names(self):
+        return ('scale', 'translate_percent', 'translate_px', 'rotate', 'shear', 'order', 'cval', 'mode')
+
 
 class IAAPerspective(DualIAATransform):
     """Perform a random four point perspective transform of the input.
@@ -253,3 +309,6 @@ class IAAPerspective(DualIAATransform):
     @property
     def processor(self):
         return iaa.PerspectiveTransform(self.scale, self.keep_size)
+
+    def get_transform_init_args_names(self):
+        return ('scale', 'keep_size')

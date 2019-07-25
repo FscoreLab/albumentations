@@ -732,7 +732,7 @@ def test_resize_default_interpolation_float(target):
     height, width = resized_img.shape[:2]
     assert height == 2
     assert width == 2
-    assert np.array_equal(resized_img, expected)
+    assert_array_almost_equal_nulp(resized_img, expected)
 
 
 @pytest.mark.parametrize('target', ['image', 'mask'])
@@ -829,3 +829,93 @@ def test_filter_bboxes(bboxes, min_area, min_visibility, target):
     filtered_bboxes = filter_bboxes(
         bboxes, min_area=min_area, min_visibility=min_visibility, rows=100, cols=100)
     assert filtered_bboxes == target
+
+
+def test_fun_max_size():
+    target_width = 256
+
+    img = np.empty((330, 49), dtype=np.uint8)
+    out = F.smallest_max_size(img, target_width, interpolation=cv2.INTER_LINEAR)
+
+    assert out.shape == (1724, target_width)
+
+
+def test_is_rgb_image():
+    image = np.ones((5, 5, 3), dtype=np.uint8)
+    assert F.is_rgb_image(image)
+
+    multispectral_image = np.ones((5, 5, 4), dtype=np.uint8)
+    assert not F.is_rgb_image(multispectral_image)
+
+    gray_image = np.ones((5, 5), dtype=np.uint8)
+    assert not F.is_rgb_image(gray_image)
+
+    gray_image = np.ones((5, 5, 1), dtype=np.uint8)
+    assert not F.is_rgb_image(gray_image)
+
+
+def test_is_grayscale_image():
+    image = np.ones((5, 5, 3), dtype=np.uint8)
+    assert not F.is_grayscale_image(image)
+
+    multispectral_image = np.ones((5, 5, 4), dtype=np.uint8)
+    assert not F.is_grayscale_image(multispectral_image)
+
+    gray_image = np.ones((5, 5), dtype=np.uint8)
+    assert F.is_grayscale_image(gray_image)
+
+    gray_image = np.ones((5, 5, 1), dtype=np.uint8)
+    assert F.is_grayscale_image(gray_image)
+
+
+def test_is_multispectral_image():
+    image = np.ones((5, 5, 3), dtype=np.uint8)
+    assert not F.is_multispectral_image(image)
+
+    multispectral_image = np.ones((5, 5, 4), dtype=np.uint8)
+    assert F.is_multispectral_image(multispectral_image)
+
+    gray_image = np.ones((5, 5), dtype=np.uint8)
+    assert not F.is_multispectral_image(gray_image)
+
+    gray_image = np.ones((5, 5, 1), dtype=np.uint8)
+    assert not F.is_multispectral_image(gray_image)
+
+
+def test_brightness_contrast():
+    dtype = np.uint8
+    min_value = np.iinfo(dtype).min
+    max_value = np.iinfo(dtype).max
+
+    image_uint8 = np.random.randint(min_value, max_value, size=(5, 5, 3), dtype=dtype)
+
+    assert np.array_equal(F.brightness_contrast_adjust(image_uint8),
+                          F._brightness_contrast_adjust_uint(image_uint8))
+
+    assert np.array_equal(F._brightness_contrast_adjust_non_uint(image_uint8),
+                          F._brightness_contrast_adjust_uint(image_uint8))
+
+    dtype = np.uint16
+    min_value = np.iinfo(dtype).min
+    max_value = np.iinfo(dtype).max
+
+    image_uint16 = np.random.randint(min_value, max_value, size=(5, 5, 3), dtype=dtype)
+
+    assert np.array_equal(F.brightness_contrast_adjust(image_uint16),
+                          F._brightness_contrast_adjust_non_uint(image_uint16))
+
+    F.brightness_contrast_adjust(image_uint16)
+
+    dtype = np.uint32
+    min_value = np.iinfo(dtype).min
+    max_value = np.iinfo(dtype).max
+
+    image_uint32 = np.random.randint(min_value, max_value, size=(5, 5, 3), dtype=dtype)
+
+    assert np.array_equal(F.brightness_contrast_adjust(image_uint32),
+                          F._brightness_contrast_adjust_non_uint(image_uint32))
+
+    image_float = np.random.random((5, 5, 3))
+
+    assert np.array_equal(F.brightness_contrast_adjust(image_float),
+                          F._brightness_contrast_adjust_non_uint(image_float))

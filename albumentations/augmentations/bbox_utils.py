@@ -11,6 +11,10 @@ def normalize_bbox(bbox, rows, cols):
     """Normalize coordinates of a bounding box. Divide x-coordinates by image width and y-coordinates
     by image height.
     """
+    if rows == 0:
+        raise ValueError('Argument rows cannot be zero')
+    if cols == 0:
+        raise ValueError('Argument cols cannot be zero')
     x_min, y_min, x_max, y_max = bbox[:4]
     normalized_bbox = [x_min / cols, y_min / rows, x_max / cols, y_max / rows]
     return normalized_bbox + list(bbox[4:])
@@ -20,6 +24,11 @@ def denormalize_bbox(bbox, rows, cols):
     """Denormalize coordinates of a bounding box. Multiply x-coordinates by image width and y-coordinates
     by image height. This is an inverse operation for :func:`~albumentations.augmentations.bbox.normalize_bbox`.
     """
+    if rows == 0:
+        raise ValueError('Argument rows cannot be zero')
+    if cols == 0:
+        raise ValueError('Argument cols cannot be zero')
+
     x_min, y_min, x_max, y_max = bbox[:4]
     denormalized_bbox = [x_min * cols, y_min * rows, x_max * cols, y_max * rows]
     return denormalized_bbox + list(bbox[4:])
@@ -217,3 +226,24 @@ def filter_bboxes(bboxes, rows, cols, min_area=0., min_visibility=0.):
             continue
         resulting_boxes.append(bbox)
     return resulting_boxes
+
+
+def union_of_bboxes(height, width, bboxes, erosion_rate=0.0, to_int=False):
+    """Calculate union of bounding boxes.
+
+    Args:
+        height (float): Height of image or space.
+        width (float): Width of image or space.
+        bboxes (list): List like bounding boxes. Format is `[x_min, y_min, x_max, y_max]`.
+        erosion_rate (float): How much each bounding box can be shrinked, useful for erosive cropping.
+            Set this in range [0, 1]. 0 will not be erosive at all, 1.0 can make any bbox to lose its volume.
+    """
+    x1, y1 = width, height
+    x2, y2 = 0, 0
+    for b in bboxes:
+        w, h = b[2] - b[0], b[3] - b[1]
+        lim_x1, lim_y1 = b[0] + erosion_rate * w, b[1] + erosion_rate * h
+        lim_x2, lim_y2 = b[2] - erosion_rate * w, b[3] - erosion_rate * h
+        x1, y1 = np.min([x1, lim_x1]), np.min([y1, lim_y1])
+        x2, y2 = np.max([x2, lim_x2]), np.max([y2, lim_y2])
+    return x1, y1, x2, y2
