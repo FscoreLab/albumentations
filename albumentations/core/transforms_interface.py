@@ -46,7 +46,7 @@ def to_tuple(param, low=None, bias=None):
 
 @add_metaclass(SerializableMeta)
 class BasicTransform(object):
-    def __init__(self, p=0.5, always_apply=False):
+    def __init__(self, always_apply=False, p=0.5):
         self.p = p
         self.always_apply = always_apply
         self._additional_targets = {}
@@ -103,7 +103,6 @@ class BasicTransform(object):
     def update_params(self, params, **kwargs):
         if hasattr(self, 'interpolation'):
             params['interpolation'] = self.interpolation
-
         if hasattr(self, 'fill_value'):
             params['fill_value'] = self.fill_value
         params.update(
@@ -120,6 +119,7 @@ class BasicTransform(object):
         ex: {'target_image': 'image'}
         ex: {'obj1_mask': 'mask', 'obj2_mask': 'mask'}
         by the way you must have at least one object with key 'image'
+
         Args:
             additional_targets (dict): keys - new target name, values - old target name. ex: {'image2': 'image'}
         """
@@ -165,6 +165,7 @@ class BasicTransform(object):
 
 class DualTransform(BasicTransform):
     """Transform for segmentation task."""
+
     @property
     def targets(self):
         return {'image': self.apply,
