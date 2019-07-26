@@ -205,6 +205,10 @@ class Flip(DualTransform):
         uint8, float32
     """
 
+    def __init__(self, d=None, p=1):
+        super(Flip, self).__init__(p=p)
+        self.d = d
+
     def apply(self, img, d=0, **params):
         """Args:
         d (int): code that specifies how to flip the input. 0 for vertical flipping, 1 for horizontal flipping,
@@ -215,7 +219,10 @@ class Flip(DualTransform):
 
     def get_params(self):
         # Random int in the range [-1, 1]
-        return {'d': random.randint(-1, 1)}
+        if self.d is None:
+            return {'d': random.randint(-1, 1)}
+        else:
+            return {'d': self.d}
 
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_flip(bbox, **params)
