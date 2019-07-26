@@ -44,7 +44,7 @@ class PadIfNeeded(DualTransform):
 
     def __init__(self, min_height=1024, min_width=1024, border_mode=cv2.BORDER_REFLECT_101,
                  value=None, mask_value=None, always_apply=False, p=1.0):
-        super(PadIfNeeded, self).__init__(always_apply, p)
+        super(PadIfNeeded, self).__init__(p, always_apply)
         self.min_height = min_height
         self.min_width = min_width
         self.border_mode = border_mode
@@ -295,7 +295,7 @@ class SmallestMaxSize(DualTransform):
     """
 
     def __init__(self, max_size=1024, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1):
-        super(SmallestMaxSize, self).__init__(always_apply, p)
+        super(SmallestMaxSize, self).__init__(p, always_apply)
         self.interpolation = interpolation
         self.max_size = max_size
 
@@ -425,7 +425,7 @@ class Rotate(DualTransform):
 
     def __init__(self, limit=90, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101,
                  value=None, mask_value=None, always_apply=False, p=.5):
-        super(Rotate, self).__init__(always_apply, p)
+        super(Rotate, self).__init__(p, always_apply)
         self.limit = to_tuple(limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
@@ -467,7 +467,7 @@ class RandomScale(DualTransform):
     """
 
     def __init__(self, scale_limit=0.1, interpolation=cv2.INTER_LINEAR, always_apply=False, p=0.5):
-        super(RandomScale, self).__init__(always_apply, p)
+        super(RandomScale, self).__init__(p, always_apply)
         self.scale_limit = to_tuple(scale_limit, bias=1.0)
         self.interpolation = interpolation
 
@@ -518,7 +518,7 @@ class ShiftScaleRotate(DualTransform):
 
     def __init__(self, shift_limit=0.0625, scale_limit=0.1, rotate_limit=45, interpolation=cv2.INTER_LINEAR,
                  border_mode=cv2.BORDER_REFLECT_101, value=None, mask_value=None, always_apply=False, p=0.5):
-        super(ShiftScaleRotate, self).__init__(always_apply, p)
+        super(ShiftScaleRotate, self).__init__(p, always_apply)
         self.shift_limit = to_tuple(shift_limit)
         self.scale_limit = to_tuple(scale_limit, bias=1.0)
         self.rotate_limit = to_tuple(rotate_limit)
@@ -648,7 +648,7 @@ class RandomCropNearBBox(DualTransform):
     """
 
     def __init__(self, max_part_shift=0.3, always_apply=False, p=1.0):
-        super(RandomCropNearBBox, self).__init__(always_apply, p)
+        super(RandomCropNearBBox, self).__init__(p, always_apply)
         self.max_part_shift = max_part_shift
 
     def apply(self, img, x_min=0, x_max=0, y_min=0, y_max=0, **params):
@@ -760,7 +760,7 @@ class RandomSizedBBoxSafeCrop(DualTransform):
 
     def __init__(self, height, width, erosion_rate=0.0, interpolation=cv2.INTER_LINEAR,
                  always_apply=False, p=1.0):
-        super(RandomSizedBBoxSafeCrop, self).__init__(always_apply, p)
+        super(RandomSizedBBoxSafeCrop, self).__init__(p, always_apply)
         self.height = height
         self.width = width
         self.interpolation = interpolation
@@ -817,7 +817,7 @@ class OpticalDistortion(DualTransform):
 
     def __init__(self, distort_limit=0.05, shift_limit=0.05, interpolation=cv2.INTER_LINEAR,
                  border_mode=cv2.BORDER_REFLECT_101, value=None, mask_value=None, always_apply=False, p=0.5):
-        super(OpticalDistortion, self).__init__(always_apply, p)
+        super(OpticalDistortion, self).__init__(p, always_apply)
         self.shift_limit = to_tuple(shift_limit)
         self.distort_limit = to_tuple(distort_limit)
         self.interpolation = interpolation
@@ -850,7 +850,7 @@ class GridDistortion(DualTransform):
 
     def __init__(self, num_steps=5, distort_limit=0.3, interpolation=cv2.INTER_LINEAR,
                  border_mode=cv2.BORDER_REFLECT_101, value=None, mask_value=None, always_apply=False, p=0.5):
-        super(GridDistortion, self).__init__(always_apply, p)
+        super(GridDistortion, self).__init__(p, always_apply)
         self.num_steps = num_steps
         self.distort_limit = to_tuple(distort_limit)
         self.interpolation = interpolation
@@ -899,7 +899,7 @@ class ElasticTransform(DualTransform):
     def __init__(self, alpha=1, sigma=50, alpha_affine=50, interpolation=cv2.INTER_LINEAR,
                  border_mode=cv2.BORDER_REFLECT_101, value=None, mask_value=None,
                  always_apply=False, approximate=False, p=0.5):
-        super(ElasticTransform, self).__init__(always_apply, p)
+        super(ElasticTransform, self).__init__(p, always_apply)
         self.alpha = alpha
         self.alpha_affine = alpha_affine
         self.sigma = sigma
@@ -974,7 +974,7 @@ class Cutout(ImageOnlyTransform):
     """
 
     def __init__(self, num_holes=8, max_h_size=8, max_w_size=8, fill_value=0, always_apply=False, p=0.5):
-        super(Cutout, self).__init__(always_apply, p)
+        super(Cutout, self).__init__(p, always_apply)
         self.num_holes = num_holes
         self.max_h_size = max_h_size
         self.max_w_size = max_w_size
@@ -1040,7 +1040,7 @@ class CoarseDropout(ImageOnlyTransform):
     def __init__(self, max_holes=8, max_height=8, max_width=8,
                  min_holes=None, min_height=None, min_width=None,
                  fill_value=0, always_apply=False, p=0.5):
-        super(CoarseDropout, self).__init__(always_apply, p)
+        super(CoarseDropout, self).__init__(p, always_apply)
         self.max_holes = max_holes
         self.max_height = max_height
         self.max_width = max_width
@@ -1132,7 +1132,7 @@ class RandomSnow(ImageOnlyTransform):
     """
 
     def __init__(self, snow_point_lower=0.1, snow_point_upper=0.3, brightness_coeff=2.5, always_apply=False, p=0.5):
-        super(RandomSnow, self).__init__(always_apply, p)
+        super(RandomSnow, self).__init__(p, always_apply)
 
         assert 0 <= snow_point_lower <= snow_point_upper <= 1
         assert 0 <= brightness_coeff
@@ -1184,7 +1184,7 @@ class RandomRain(ImageOnlyTransform):
                  brightness_coefficient=0.7,
                  rain_type=None,
                  always_apply=False, p=0.5):
-        super(RandomRain, self).__init__(always_apply, p)
+        super(RandomRain, self).__init__(p, always_apply)
 
         assert rain_type in ['drizzle', 'heavy', 'torrential', None]
 
@@ -1283,7 +1283,7 @@ class RandomFog(ImageOnlyTransform):
     """
 
     def __init__(self, fog_coef_lower=0.3, fog_coef_upper=1, alpha_coef=0.08, always_apply=False, p=0.5):
-        super(RandomFog, self).__init__(always_apply, p)
+        super(RandomFog, self).__init__(p, always_apply)
 
         assert 0 <= fog_coef_lower <= fog_coef_upper <= 1
         assert 0 <= alpha_coef <= 1
@@ -1361,7 +1361,7 @@ class RandomSunFlare(ImageOnlyTransform):
                  src_color=(255, 255, 255),
                  always_apply=False,
                  p=0.5):
-        super(RandomSunFlare, self).__init__(always_apply, p)
+        super(RandomSunFlare, self).__init__(p, always_apply)
 
         (flare_center_lower_x, flare_center_lower_y,
          flare_center_upper_x, flare_center_upper_y) = flare_roi
@@ -1491,7 +1491,7 @@ class RandomShadow(ImageOnlyTransform):
                  shadow_dimension=5,
                  always_apply=False,
                  p=0.5):
-        super(RandomShadow, self).__init__(always_apply, p)
+        super(RandomShadow, self).__init__(p, always_apply)
 
         (shadow_lower_x, shadow_lower_y, shadow_upper_x, shadow_upper_y) = shadow_roi
 
@@ -1633,7 +1633,7 @@ class RandomBrightnessContrast(ImageOnlyTransform):
     """
 
     def __init__(self, brightness_limit=0.2, contrast_limit=0.2, always_apply=False, p=0.5):
-        super(RandomBrightnessContrast, self).__init__(always_apply, p)
+        super(RandomBrightnessContrast, self).__init__(p, always_apply)
         self.brightness_limit = to_tuple(brightness_limit)
         self.contrast_limit = to_tuple(contrast_limit)
 
@@ -1839,7 +1839,7 @@ class ISONoise(ImageOnlyTransform):
     """
 
     def __init__(self, color_shift=(0.01, 0.05), intensity=(0.1, 0.5), always_apply=False, p=0.5):
-        super(ISONoise, self).__init__(always_apply, p)
+        super(ISONoise, self).__init__(p, always_apply)
         self.intensity = intensity
         self.color_shift = color_shift
 
@@ -1903,7 +1903,7 @@ class ChannelDropout(ImageOnlyTransform):
     """
 
     def __init__(self, channel_drop_range=(1, 1), fill_value=0, always_apply=False, p=0.5):
-        super(ChannelDropout, self).__init__(always_apply, p)
+        super(ChannelDropout, self).__init__(p, always_apply)
 
         self.channel_drop_range = channel_drop_range
 
@@ -2125,7 +2125,7 @@ class Lambda(NoOp):
     """
 
     def __init__(self, image=None, mask=None, keypoint=None, bbox=None, name=None, always_apply=False, p=1.0):
-        super(Lambda, self).__init__(always_apply, p)
+        super(Lambda, self).__init__(p, always_apply)
 
         self.name = name
         self.custom_apply_fns = {target_name: F.noop for target_name in (

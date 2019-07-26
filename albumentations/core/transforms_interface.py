@@ -165,7 +165,6 @@ class BasicTransform(object):
 
 class DualTransform(BasicTransform):
     """Transform for segmentation task."""
-
     @property
     def targets(self):
         return {'image': self.apply,
