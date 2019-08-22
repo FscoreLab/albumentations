@@ -51,6 +51,8 @@
 
 **Weather transforms** [`example_weather_transforms.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/example_weather_transforms.ipynb)
 
+**Serialization** [`serialization.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/serialization.ipynb)
+
 You can use this [Google Colaboratory notebook](https://colab.research.google.com/drive/1JuZ23u0C0gx93kV0oJ8Mq0B6CBYhPLXy#scrollTo=GwFN-In3iagp&forceEdit=true&offline=true&sandboxMode=true)
 to adjust image augmentation parameters and see the resulting images.
 
@@ -135,6 +137,7 @@ Pixel-level transforms will change just an input image and will leave any additi
 - [RandomShadow](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.RandomShadow)
 - [RandomSnow](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.RandomSnow)
 - [RandomSunFlare](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.RandomSunFlare)
+- [Solarize](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.Solarize)
 - [ToFloat](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.ToFloat)
 - [ToGray](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.ToGray)
 
@@ -162,6 +165,7 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | [PadIfNeeded](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.PadIfNeeded)                         | ✓     | ✓     | ✓      | ✓         |
 | [RandomCrop](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.RandomCrop)                           | ✓     | ✓     | ✓      | ✓         |
 | [RandomCropNearBBox](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.RandomCropNearBBox)           | ✓     | ✓     | ✓      |           |
+| [RandomGridShuffle](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.RandomGridShuffle)             | ✓     | ✓     |        |           |
 | [RandomRotate90](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.RandomRotate90)                   | ✓     | ✓     | ✓      | ✓         |
 | [RandomScale](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.RandomScale)                         | ✓     | ✓     | ✓      | ✓         |
 | [RandomSizedBBoxSafeCrop](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.RandomSizedBBoxSafeCrop) | ✓     | ✓     | ✓      |           |
