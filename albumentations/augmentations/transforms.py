@@ -5,6 +5,7 @@ import random
 import warnings
 from enum import Enum
 from types import LambdaType
+from skimage.measure import label
 
 import cv2
 import numpy as np
@@ -40,10 +41,12 @@ __all__ = [
     "MedianBlur",
     "GaussianBlur",
     "GaussNoise",
+    "GlassBlur",
     "CLAHE",
     "ChannelShuffle",
     "InvertImg",
     "ToGray",
+    "ToSepia",
     "JpegCompression",
     "ImageCompression",
     "Cutout",
@@ -74,7 +77,9 @@ __all__ = [
     "Posterize",
     "Downscale",
     "MultiplicativeNoise",
-    "Rotate90"
+    "FancyPCA",
+    "MaskDropout",
+    "Rotate90",
 ]
 
 
@@ -1028,7 +1033,8 @@ class RandomSizedBBoxSafeCrop(DualTransform):
         bx, by = x * random.random(), y * random.random()
         bx2, by2 = x2 + (1 - x2) * random.random(), y2 + (1 - y2) * random.random()
         bw, bh = bx2 - bx, by2 - by
-        crop_height, crop_width = int(img_h * bh), int(img_w * bw)
+        crop_height = img_h if bh >= 1.0 else int(img_h * bh)
+        crop_width = img_w if bw >= 1.0 else int(img_w * bw)
         h_start = np.clip(0.0 if bh >= 1.0 else by / (1.0 - bh), 0.0, 1.0)
         w_start = np.clip(0.0 if bw >= 1.0 else bx / (1.0 - bw), 0.0, 1.0)
         return {"h_start": h_start, "w_start": w_start, "crop_height": crop_height, "crop_width": crop_width}
@@ -2733,7 +2739,7 @@ class RandomGamma(ImageOnlyTransform):
     Args:
         gamma_limit (float or (float, float)): If gamma_limit is a single float value,
             the range will be (-gamma_limit, gamma_limit). Default: (80, 120).
-        eps (float): value for exclude division by zero.
+        eps: Deprecated.
 
     Targets:
         image
@@ -2742,13 +2748,13 @@ class RandomGamma(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, gamma_limit=(80, 120), eps=1e-7, always_apply=False, p=0.5):
+    def __init__(self, gamma_limit=(80, 120), eps=None, always_apply=False, p=0.5):
         super(RandomGamma, self).__init__(always_apply, p)
         self.gamma_limit = to_tuple(gamma_limit)
         self.eps = eps
 
     def apply(self, img, gamma=1, **params):
-        return F.gamma_transform(img, gamma=gamma, eps=self.eps)
+        return F.gamma_transform(img, gamma=gamma)
 
     def get_params(self):
         return {"gamma": random.randint(self.gamma_limit[0], self.gamma_limit[1]) / 100.0}
@@ -2773,6 +2779,32 @@ class ToGray(ImageOnlyTransform):
 
     def apply(self, img, **params):
         return F.to_gray(img)
+
+    def get_transform_init_args_names(self):
+        return ()
+
+
+class ToSepia(ImageOnlyTransform):
+    """Applies sepia filter to the input RGB image
+
+    Args:
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, always_apply=False, p=0.5):
+        super(ToSepia, self).__init__(always_apply, p)
+        self.sepia_transformation_matrix = np.matrix(
+            [[0.393, 0.769, 0.189], [0.349, 0.686, 0.168], [0.272, 0.534, 0.131]]
+        )
+
+    def apply(self, image, **params):
+        return F.linear_transformation_rgb(image, self.sepia_transformation_matrix)
 
     def get_transform_init_args_names(self):
         return ()
@@ -2906,7 +2938,7 @@ class Lambda(NoOp):
         self.custom_apply_fns = {target_name: F.noop for target_name in ("image", "mask", "keypoint", "bbox")}
         for target_name, custom_apply_fn in {"image": image, "mask": mask, "keypoint": keypoint, "bbox": bbox}.items():
             if custom_apply_fn is not None:
-                if isinstance(custom_apply_fn, LambdaType):
+                if isinstance(custom_apply_fn, LambdaType) and custom_apply_fn.__name__ == "<lambda>":
                     warnings.warn(
                         "Using lambda is incompatible with multiprocessing. "
                         "Consider using regular functions or partial()."
@@ -3002,3 +3034,178 @@ class MultiplicativeNoise(ImageOnlyTransform):
 
     def get_transform_init_args_names(self):
         return "multiplier", "per_channel", "elementwise"
+
+
+class FancyPCA(ImageOnlyTransform):
+    """Augment RGB image using FancyPCA from Krizhevsky's paper
+    "ImageNet Classification with Deep Convolutional Neural Networks"
+
+    Args:
+        alpha (float):  how much to perturb/scale the eigen vecs and vals.
+            scale is samples from gaussian distribution (mu=0, sigma=alpha)
+
+    Targets:
+        image
+
+    Image types:
+        3-channel uint8 images only
+
+    Credit:
+        http://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf
+        https://deshanadesai.github.io/notes/Fancy-PCA-with-Scikit-Image
+        https://pixelatedbrian.github.io/2018-04-29-fancy_pca/
+    """
+
+    def __init__(self, alpha=0.1, always_apply=False, p=0.5):
+        """
+
+        """
+        super(FancyPCA, self).__init__(always_apply=always_apply, p=p)
+        self.alpha = alpha
+
+    def apply(self, img, alpha=0.1, **params):
+        img = F.fancy_pca(img, alpha)
+        return img
+
+    def get_params(self):
+        return {"alpha": random.gauss(0, self.alpha)}
+
+    def get_transform_init_args_names(self):
+        return ("alpha",)
+
+
+class MaskDropout(DualTransform):
+    """
+    Image & mask augmentation that zero out mask and image regions corresponding
+    to randomly chosen object instance from mask.
+
+    Mask must be single-channel image, zero values treated as background.
+    Image can be any number of channels.
+
+    Inspired by https://www.kaggle.com/c/severstal-steel-defect-detection/discussion/114254
+    """
+
+    def __init__(self, max_objects=1, image_fill_value=0, mask_fill_value=0, always_apply=False, p=0.5):
+        """
+        Args:
+            max_objects: Maximum number of labels that can be zeroed out. Can be tuple, in this case it's [min, max]
+            image_fill_value: Fill value to use when filling image.
+                Can be 'inpaint' to apply inpaining (works only  for 3-chahnel images)
+            mask_fill_value: Fill value to use when filling mask.
+
+        Targets:
+            image, mask
+
+        Image types:
+            uint8, float32
+        """
+        super(MaskDropout, self).__init__(always_apply, p)
+        self.max_objects = to_tuple(max_objects, 1)
+        self.image_fill_value = image_fill_value
+        self.mask_fill_value = mask_fill_value
+
+    @property
+    def targets_as_params(self):
+        return ["mask"]
+
+    def get_params_dependent_on_targets(self, params):
+        mask = params["mask"]
+
+        label_image, num_labels = label(mask, return_num=True)
+
+        if num_labels == 0:
+            dropout_mask = None
+        else:
+            objects_to_drop = random.randint(self.max_objects[0], self.max_objects[1])
+            objects_to_drop = min(num_labels, objects_to_drop)
+
+            if objects_to_drop == num_labels:
+                dropout_mask = mask > 0
+            else:
+                labels_index = random.sample(range(1, num_labels + 1), objects_to_drop)
+                dropout_mask = np.zeros((mask.shape[0], mask.shape[1]), dtype=np.bool)
+                for label_index in labels_index:
+                    dropout_mask |= label_image == label_index
+
+        params.update({"dropout_mask": dropout_mask})
+        return params
+
+    def apply(self, img, dropout_mask=None, **params):
+        if dropout_mask is None:
+            return img
+
+        if self.image_fill_value == "inpaint":
+            dropout_mask = dropout_mask.astype(np.uint8)
+            _, _, w, h = cv2.boundingRect(dropout_mask)
+            radius = min(3, max(w, h) // 2)
+            img = cv2.inpaint(img, dropout_mask, radius, cv2.INPAINT_NS)
+        else:
+            img = img.copy()
+            img[dropout_mask] = self.image_fill_value
+
+        return img
+
+    def apply_to_mask(self, img, dropout_mask=None, **params):
+        if dropout_mask is None:
+            return img
+
+        img = img.copy()
+        img[dropout_mask] = self.mask_fill_value
+        return img
+
+    def get_transform_init_args_names(self):
+        return ("max_objects", "image_fill_value", "mask_fill_value")
+
+
+class GlassBlur(Blur):
+    """Apply glass noise to the input image.
+    Args:
+        sigma (float): standard deviation for Gaussian kernel.
+        max_delta (int): max distance between pixels which are swapped.
+        iterations (int): number of repeats.
+            Should be in range [1, inf). Default: (2).
+        mode (str): mode of computation: fast or exact. Default: "fast".
+        p (float): probability of applying the transform. Default: 0.5.
+    Targets:
+        image
+    Image types:
+        uint8, float32
+
+    Reference:
+    |  https://arxiv.org/abs/1903.12261
+    |  https://github.com/hendrycks/robustness/blob/master/ImageNet-C/create_c/make_imagenet_c.py
+    """
+
+    def __init__(self, sigma=0.7, max_delta=4, iterations=2, always_apply=False, mode="fast", p=0.5):
+        super(GlassBlur, self).__init__(always_apply=always_apply, p=p)
+        if iterations < 1:
+            raise ValueError("Iterations should be more or equal to 1, but we got {}".format(iterations))
+
+        if mode not in ["fast", "exact"]:
+            raise ValueError("Mode should be 'fast' or 'exact', but we got {}".format(iterations))
+
+        self.sigma = sigma
+        self.max_delta = max_delta
+        self.iterations = iterations
+        self.mode = mode
+
+    def apply(self, img, sigma=0.7, max_delta=4, iterations=2, dxy=0, **params):
+        return F.glass_blur(img, self.sigma, self.max_delta, self.iterations, dxy, self.mode)
+
+    def get_params_dependent_on_targets(self, params):
+        img = params["image"]
+
+        # generate array containing all necessary values for transformations
+        width_pixels = img.shape[0] - self.max_delta * 2
+        height_pixels = img.shape[1] - self.max_delta * 2
+        total_pixels = width_pixels * height_pixels
+        dxy = np.random.randint(-self.max_delta, self.max_delta, size=(total_pixels, self.iterations, 2))
+
+        return {"dxy": dxy}
+
+    def get_transform_init_args_names(self):
+        return ("sigma", "max_delta", "iterations")
+
+    @property
+    def targets_as_params(self):
+        return ["image"]

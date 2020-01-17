@@ -131,6 +131,7 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
         [A.IAAAffine, {"scale": 1.5}],
         [A.IAAPiecewiseAffine, {"scale": 1.5}],
         [A.IAAPerspective, {}],
+        [A.GlassBlur, {}],
     ],
 )
 def test_binary_mask_interpolation(augmentation_cls, params):
@@ -155,6 +156,7 @@ def test_binary_mask_interpolation(augmentation_cls, params):
         [A.Resize, {"height": 80, "width": 90}],
         [A.Resize, {"height": 120, "width": 130}],
         [A.OpticalDistortion, {}],
+        [A.GlassBlur, {}],
     ],
 )
 def test_semantic_mask_interpolation(augmentation_cls, params):
@@ -189,6 +191,8 @@ def __test_multiprocessing_support_proc(args):
         [A.IAAPiecewiseAffine, {"scale": 1.5}],
         [A.IAAPerspective, {}],
         [A.IAASharpen, {}],
+        [A.FancyPCA, {}],
+        [A.GlassBlur, {}],
     ],
 )
 @skip_appveyor
@@ -273,6 +277,8 @@ def test_force_apply():
         [A.Posterize, {}],
         [A.Equalize, {}],
         [A.MultiplicativeNoise, {}],
+        [A.FancyPCA, {}],
+        [A.GlassBlur, {}],
     ],
 )
 def test_additional_targets_for_image_only(augmentation_cls, params):
@@ -530,3 +536,23 @@ def test_multiplicative_noise_rgb(image):
     result = aug.apply(image, mul)
     image = F.clip(image.astype(np.float32) * mul, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
     assert np.allclose(image, result)
+
+
+def test_mask_dropout():
+    # In this case we have mask with all ones, so MaskDropout wipe entire mask and image
+    img = np.random.randint(0, 256, [50, 10], np.uint8)
+    mask = np.ones([50, 10], dtype=np.long)
+
+    aug = A.MaskDropout(p=1)
+    result = aug(image=img, mask=mask)
+    assert np.all(result["image"] == 0)
+    assert np.all(result["mask"] == 0)
+
+    # In this case we have mask with zeros , so MaskDropout will make no changes
+    img = np.random.randint(0, 256, [50, 10], np.uint8)
+    mask = np.zeros([50, 10], dtype=np.long)
+
+    aug = A.MaskDropout(p=1)
+    result = aug(image=img, mask=mask)
+    assert np.all(result["image"] == img)
+    assert np.all(result["mask"] == 0)
